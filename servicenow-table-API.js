@@ -606,11 +606,106 @@ module.exports = function(RED) {
     
     }
 
+// Node Put MetricBase Metric
+
+function PutMetricBase(config) {
+    RED.nodes.createNode(this, config);
+    var node = this;
+    var server = RED.nodes.getNode(config.server);
+   
+    // Initial sysparm with defaults values
+    var sysparm = {
+        display_value: false ,
+        exclude_reference_link: false,
+        fields: '',
+        input_display_value: false,
+        suppress_auto_sys_field: false,
+        view: ''
+    };
+
+    this.prepareRequest = function(table,sysparm,requestBody,callback) {
+        var options = {
+            baseUrl: server.instance,
+            uri: 'api/now/v1/clotho/put/',
+            body: requestBody,
+            method: 'POST',
+            json: true,
+            headers: {
+             'Content-Type': 'application/json',
+             'Authorization': server.auth
+            }
+        };
+
+            server.doRequest(options, callback);
+
+    }
+
+    this.on('input', function(msg) {
+        var table = msg.topic;
+        var requestBody = msg.payload;
+
+        // Replace sysparm with node properties
+
+        if (msg.sysparm_display_value){
+            sysparm.display_value=msg.sysparm_display_value
+        }
+        if (msg.sysparm_exclude_reference_link){
+            sysparm.exclude_reference_link=msg.sysparm_exclude_reference_link
+        }
+        if (msg.sysparm_fields){
+            sysparm.fields=msg.sysparm_fields
+        }
+        if (msg.sysparm_input_display_value){
+            sysparm.input_display_value=msg.sysparm_input_display_value
+        }
+        if (msg.sysparm_suppress_auto_sys_field){
+            sysparm.suppress_auto_sys_field=msg.sysparm_suppress_auto_sys_field
+        }
+        if (msg.sysparm_view){
+            sysparm.view=msg.sysparm_view
+        }
+
+        if (!table || !requestBody) {
+            node.status({
+                fill: "red",
+                shape: "dot",
+                text: "Invalid message received"
+            });
+        }
+        var callback = function(err, res, body) {
+
+
+            if (res.statusCode === 201) {
+                node.status({});
+                msg.payload=res;
+                node.send(msg);
+            } else {
+                node.status({
+                    fill: "red",
+                    shape: "dot",
+                    text: "Create failed"
+                });
+                node.error("Error Put MetricBase Metric (" + res.statusCode + "): " + JSON.stringify(err) + " " + JSON.stringify(body));
+            }
+
+        };
+        node.status({
+            fill: "blue",
+            shape: "dot",
+            text: "Requesting..."
+        });
+        this.prepareRequest(table,sysparm,requestBody,callback);
+    });
+
+}
+
+
     RED.nodes.registerType("patch record",PatchRecord);
     RED.nodes.registerType("modify record",ModifyRecord);
     RED.nodes.registerType("delete record",DeleteRecord);
     RED.nodes.registerType("create record",CreateRecord);
     RED.nodes.registerType("retrieve records",RetrieveRecords);
     RED.nodes.registerType("retrieve record",RetrieveRecord);
+    RED.nodes.registerType("put metricbase metric",PutMetricBase);
     RED.nodes.registerType("servicenow-config",ServiceNowNode);
 }
